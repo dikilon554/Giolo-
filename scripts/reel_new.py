@@ -155,7 +155,6 @@ print("склейка готова")
 def cy_for(frame):
     for bl in B:
         if bl["f0"] <= frame < bl["f1"]:
-            if bl.get("name") == "start": return 1110          # над панелью с цифрами
             return bl.get("cy", 1344)                           # ~70 % высоты, как у конкурента
     return 1344
 
@@ -235,38 +234,47 @@ panel_t = {k: sT(i) for k, i in dict(day=0, week=2, month=4, job=6).items()}
 f_panel_end = next(bl for bl in B if bl.get("name") == "start")["f1"]
 title_end = f_panel_end
 
-num_big, num_small, num_job = fnt(124), fnt(56), fnt(84)
-PANEL = (150, 1210, W - 150, 1560)
+CARD = (10, 585, 400, 795)               # над кончиком пальца (палец поднят слева от головы, кончик ≈ x300, y850–950)
+TAIL_X = 300                              # куда «показывает» хвостик карточки
+card_end = new_f(sT(8))                     # держим до «нужно»: 11 250 $ успевает дойти и прочитаться
 
 
 def lerp_int(a, b, u): return int(round(a + (b - a) * min(max(u, 0), 1)))
 def fmt(n): return f"{n:,}".replace(",", " ")
 
 
-def draw_panel(img, f):
+def fit(text, maxw, size):
+    while fnt(size).getlength(text) > maxw and size > 30: size -= 2
+    return fnt(size)
+
+
+def draw_card(img, f):
     t = f / FPS
-    pop = min(1.0, (t - 0.05) / 0.14); sc = 0.92 + 0.08 * max(pop, 0)
-    layer = Image.new("RGBA", (PANEL[2] - PANEL[0], PANEL[3] - PANEL[1]), (0, 0, 0, 0)); d = ImageDraw.Draw(layer)
-    w_, h_ = layer.size
-    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], 34, fill=(188, 217, 245, 255), outline=(255, 255, 255, 120), width=3)
+    life_in = min(1.0, (t - 0.05) / 0.14); life_out = min(1.0, max(0.0, (card_end - f) / FPS / 0.14))
+    al, sc = min(life_in, life_out), 0.88 + 0.12 * max(min(life_in, 1.0), 0)
+    w_, h_ = CARD[2] - CARD[0], CARD[3] - CARD[1]
+    layer = Image.new("RGBA", (w_, h_ + 30), (0, 0, 0, 0)); d = ImageDraw.Draw(layer)
+    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], 30, fill=(188, 217, 245, 255), outline=(255, 255, 255, 140), width=3)
+    tx = TAIL_X - CARD[0]
+    d.polygon([(tx - 24, h_ - 3), (tx + 24, h_ - 3), (tx, h_ + 26)], fill=(188, 217, 245, 255))   # хвостик на палец
     if t < panel_t["week"]:
-        v = lerp_int(354, 375, (t - 0.1) / 0.3); s = f"{v} $"
-        d.text((w_ / 2, h_ / 2), s, font=num_big, fill=(15, 15, 15, 255), anchor="mm")
+        big, small = f"{lerp_int(354, 375, (t - 0.1) / 0.3)} $", None
     elif t < panel_t["month"]:
-        u = (t - panel_t["week"]) / 0.4
-        d.text((w_ / 2, h_ * 0.28), "375 $ × 7", font=num_small, fill=(60, 80, 105, 255), anchor="mm")
-        d.text((w_ / 2, h_ * 0.62), f"= {fmt(lerp_int(1300, 2625, u))} $", font=num_big, fill=(15, 15, 15, 255), anchor="mm")
-    elif t < panel_t["job"]:
-        u = (t - panel_t["month"]) / 0.45
-        d.text((w_ / 2, h_ * 0.28), "375 $ × 30", font=num_small, fill=(60, 80, 105, 255), anchor="mm")
-        d.text((w_ / 2, h_ * 0.62), f"= {fmt(lerp_int(6954, 11250, u))} $", font=num_big, fill=(15, 15, 15, 255), anchor="mm")
+        big, small = f"{fmt(lerp_int(1300, 2625, (t - panel_t['week']) / 0.3))} $", "375 $ × 7"
     else:
-        for j, (txt, em) in enumerate((("Подработка", "❌"), ("Forge Vision", "✅"))):
-            e = emoji_img(em, 74); tw = num_job.getlength(txt) + e.size[0] + 18; x = (w_ - tw) / 2; y = h_ * (0.32 + 0.36 * j)
-            d.text((x, y), txt, font=num_job, fill=(15, 15, 15, 255), anchor="lm"); layer.paste(e, (int(x + num_job.getlength(txt) + 18), int(y - 37)), e)
-    if sc < 1: layer = layer.resize((int(w_ * sc), int(h_ * sc)), Image.LANCZOS)
-    cx_, cy_ = (PANEL[0] + PANEL[2]) // 2, (PANEL[1] + PANEL[3]) // 2
-    img.alpha_composite(layer, (cx_ - layer.size[0] // 2, cy_ - layer.size[1] // 2))
+        big, small = f"{fmt(lerp_int(6954, 11250, (t - panel_t['month']) / 0.3))} $", "375 $ × 30"
+    fb = fit("11 250 $", w_ - 36, 112)
+    if small:
+        d.text((w_ / 2, h_ * 0.24), small, font=fit(small, w_ - 60, 46), fill=(60, 80, 105, 255), anchor="mm")
+        d.text((w_ / 2, h_ * 0.62), big, font=fb, fill=(15, 15, 15, 255), anchor="mm")
+    else:
+        d.text((w_ / 2, h_ * 0.5), big, font=fit("375 $", w_ - 36, 120), fill=(15, 15, 15, 255), anchor="mm")
+    if sc < 1: layer = layer.resize((int(layer.size[0] * sc), int(layer.size[1] * sc)), Image.LANCZOS)
+    if al < 1:
+        arr = np.array(layer); arr[..., 3] = (arr[..., 3] * al).astype(np.uint8); layer = Image.fromarray(arr)
+    # якорь — кончик хвостика (TAIL_X, CARD[3]+26)
+    ax, ay = TAIL_X, CARD[3] + 26
+    img.alpha_composite(layer, (int(ax - (tx * sc)), int(ay - layer.size[1])))
 
 
 def faded(im, al):
@@ -285,7 +293,8 @@ def frame_overlay(f):
     if f < title_end:
         al = min(1.0, (f / FPS + 0.04) / 0.12)
         img.alpha_composite(title if al >= 1 else faded(title, al), (0, 270))
-        draw_panel(img, f)
+    if f < card_end:
+        draw_card(img, f)
     for f0, f1, t in caps:
         if f0 <= f < f1:
             e = (f - f0) / FPS; sc = 1 + 0.10 * (1 - min(e / 0.10, 1)) ** 2
