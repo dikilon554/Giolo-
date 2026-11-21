@@ -238,12 +238,13 @@ def rcard(path, size, r=22):
     return o
 
 
-chatlogo = rcard(f"{ROOT}/исходники/chatgpt_logo.png", (640, 360), 26)
+chatlogo = rcard(f"{ROOT}/исходники/chatgpt_logo.png", (480, 270), 24)
 bl_chat = next(bl for bl in B if bl.get("name") == "chatgpt")
-CHAT_POS = (220, 60)
+CHAT_POS = (300, 150)
 bl_watch = next(bl for bl in B if bl.get("name") == "watch")
 T_RUN0 = new_f(sT(7))                       # секундомер запускается на «Сначала я зайду на YouTube»
-T_STOP = new_f(eT(57))                      # останавливается на «И вот он»
+T_WAIT0 = new_f(sT(53))                     # «Немного жду»: счётчик разгоняется
+T_STOP = new_f(eT(57))                      # на «И вот он» замирает ровно на 01:00.00
 HUD_END = new_f(eT(63)) + 6
 fw_big, fw_small = fnt(104), fnt(46)
 
@@ -252,23 +253,31 @@ def card_alpha(f, f0, f1):
     return min(1.0, (f - f0 + 1) / (0.14 * FPS), (f1 - f) / (0.12 * FPS))
 
 
+def watch_value(f):
+    if f < T_WAIT0: return max(0.0, (f - T_RUN0) / FPS)
+    base = (T_WAIT0 - T_RUN0) / FPS
+    if f >= T_STOP: return 60.0
+    u = (f - T_WAIT0) / (T_STOP - T_WAIT0)
+    return base + (60.0 - base) * u * u                      # ускорение: «немного подождали до минуты»
+
+
 def draw_watch(img, f):
-    """секундомер как у конкурента: большая карточка над головой -> бегущий счётчик вверху; на «И вот он» замирает зелёным"""
+    """секундомер как у конкурента: карточка над головой -> крупный счётчик в правом верхнем углу; на «И вот он» ровно 01:00.00"""
     if f >= HUD_END: return
-    t = max(0.0, (min(f, T_STOP) - T_RUN0) / FPS)
+    t = watch_value(f)
     txt = f"{int(t // 60):02d}:{int(t % 60):02d}.{int((t * 100) % 100):02d}"
     frozen = f >= T_STOP
-    u = min(1.0, max(0.0, (f - T_RUN0 + 4) / (0.35 * FPS)))            # 0 = карточка над головой, 1 = счётчик вверху
+    u = min(1.0, max(0.0, (f - T_RUN0 + 4) / (0.35 * FPS)))
     u = u * u * (3 - 2 * u)
-    big, small = (440, 150), (270, 88)
-    w_, h_ = int(big[0] + (small[0] - big[0]) * u), int(big[1] + (small[1] - big[1]) * u)
-    cx_ = int(540 + (835 - 540) * u); cy_ = int(290 + (88 - 290) * u)
+    big, small = (440, 150), (390, 124)
+    pop = 1.0 + (0.16 * max(0.0, 1 - (f - T_STOP) / (0.3 * FPS)) if frozen else 0.0)
+    w_, h_ = int((big[0] + (small[0] - big[0]) * u) * pop), int((big[1] + (small[1] - big[1]) * u) * pop)
+    cx_ = int(540 + (835 - 540) * u); cy_ = int(290 + (100 - 290) * u)
     al = min(1.0, (f + 1) / (0.14 * FPS)) * (1.0 if f < HUD_END - 6 else (HUD_END - f) / 6.0)
     layer = Image.new("RGBA", (w_, h_), (0, 0, 0, 0)); d = ImageDraw.Draw(layer)
-    col = (28, 28, 30, 235); edge = (60, 220, 110, 255) if frozen else (255, 255, 255, 70)
-    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], int(h_ * 0.28), fill=col, outline=edge, width=4 if frozen else 2)
-    fnt_ = fnt(int(h_ * 0.52))
-    d.text((w_ / 2, h_ / 2 + 2), txt, font=fnt_, fill=(60, 220, 110, 255) if frozen else (255, 255, 255, 255), anchor="mm")
+    col = (28, 28, 30, 238); edge = (60, 220, 110, 255) if frozen else (255, 255, 255, 90)
+    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], int(h_ * 0.28), fill=col, outline=edge, width=5 if frozen else 3)
+    d.text((w_ / 2, h_ / 2 + 2), txt, font=fnt(int(h_ * 0.54)), fill=(60, 220, 110, 255) if frozen else (255, 255, 255, 255), anchor="mm")
     if al < 1:
         arr = np.array(layer); arr[..., 3] = (arr[..., 3] * max(al, 0)).astype(np.uint8); layer = Image.fromarray(arr)
     img.alpha_composite(layer, (cx_ - w_ // 2, cy_ - h_ // 2))
@@ -351,15 +360,12 @@ print("наложение готово")
 MIX_DB = float(os.environ.get("MIX_DB", "-12"))
 music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-final = f"{OUT}/рилс4_v1.mp4"
+final = f"{OUT}/рилс4_v2.mp4"
 af = (f"[1:a]highpass=f=35,afade=t=in:st=0:d=0.03,afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[2:a]asplit=2[v][vs];"
       "[m][vs]sidechaincompress=threshold=0.02:ratio=8:attack=8:release=300[md];"
       "[v][md]amix=inputs=2:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", music, "-i", base_a, "-filter_complex", af, "-map", "0:v", "-map", "[a]",
      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", final])
-# версия без музыки
-run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", base_a, "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-map", "0:v", "-map", "1:a",
-     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", f"{OUT}/рилс4_v1_без_музыки.mp4"])
 json.dump({"caps": [[a / FPS, b / FPS, t] for a, b, t, k in caps], "blocks": B},
           open(f"{OUT}/timeline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("ГОТОВО:", final, f"{os.path.getsize(final)/1e6:.1f} МБ, {dur:.2f} с")
