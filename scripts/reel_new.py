@@ -234,8 +234,8 @@ panel_t = {k: sT(i) for k, i in dict(day=0, week=2, month=4, job=6).items()}
 f_panel_end = next(bl for bl in B if bl.get("name") == "start")["f1"]
 title_end = f_panel_end
 
-CARD = (10, 585, 400, 795)               # над кончиком пальца (палец поднят слева от головы, кончик ≈ x300, y850–950)
-TAIL_X = 300                              # куда «показывает» хвостик карточки
+CARD = (35, 668, 305, 808)               # над кончиком пальца (палец поднят слева от головы, кончик ≈ x300, y850–950)
+TAIL_X = 290                              # куда «показывает» хвостик карточки
 card_end = new_f(sT(8))                     # держим до «нужно»: 11 250 $ успевает дойти и прочитаться
 
 
@@ -254,26 +254,26 @@ def draw_card(img, f):
     al, sc = min(life_in, life_out), 0.88 + 0.12 * max(min(life_in, 1.0), 0)
     w_, h_ = CARD[2] - CARD[0], CARD[3] - CARD[1]
     layer = Image.new("RGBA", (w_, h_ + 30), (0, 0, 0, 0)); d = ImageDraw.Draw(layer)
-    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], 30, fill=(188, 217, 245, 255), outline=(255, 255, 255, 140), width=3)
+    d.rounded_rectangle([0, 0, w_ - 1, h_ - 1], 24, fill=(188, 217, 245, 255), outline=(255, 255, 255, 140), width=3)
     tx = TAIL_X - CARD[0]
-    d.polygon([(tx - 24, h_ - 3), (tx + 24, h_ - 3), (tx, h_ + 26)], fill=(188, 217, 245, 255))   # хвостик на палец
+    d.polygon([(tx - 18, h_ - 3), (tx + 18, h_ - 3), (tx, h_ + 24)], fill=(188, 217, 245, 255))   # хвостик на палец
     if t < panel_t["week"]:
         big, small = f"{lerp_int(354, 375, (t - 0.1) / 0.3)} $", None
     elif t < panel_t["month"]:
         big, small = f"{fmt(lerp_int(1300, 2625, (t - panel_t['week']) / 0.3))} $", "375 $ × 7"
     else:
         big, small = f"{fmt(lerp_int(6954, 11250, (t - panel_t['month']) / 0.3))} $", "375 $ × 30"
-    fb = fit("11 250 $", w_ - 36, 112)
+    fb = fit("11 250 $", w_ - 30, 78)
     if small:
-        d.text((w_ / 2, h_ * 0.24), small, font=fit(small, w_ - 60, 46), fill=(60, 80, 105, 255), anchor="mm")
+        d.text((w_ / 2, h_ * 0.24), small, font=fit(small, w_ - 50, 32), fill=(60, 80, 105, 255), anchor="mm")
         d.text((w_ / 2, h_ * 0.62), big, font=fb, fill=(15, 15, 15, 255), anchor="mm")
     else:
-        d.text((w_ / 2, h_ * 0.5), big, font=fit("375 $", w_ - 36, 120), fill=(15, 15, 15, 255), anchor="mm")
+        d.text((w_ / 2, h_ * 0.5), big, font=fit("375 $", w_ - 30, 84), fill=(15, 15, 15, 255), anchor="mm")
     if sc < 1: layer = layer.resize((int(layer.size[0] * sc), int(layer.size[1] * sc)), Image.LANCZOS)
     if al < 1:
         arr = np.array(layer); arr[..., 3] = (arr[..., 3] * al).astype(np.uint8); layer = Image.fromarray(arr)
     # якорь — кончик хвостика (TAIL_X, CARD[3]+26)
-    ax, ay = TAIL_X, CARD[3] + 26
+    ax, ay = TAIL_X, CARD[3] + 24
     img.alpha_composite(layer, (int(ax - (tx * sc)), int(ay - layer.size[1])))
 
 
@@ -324,13 +324,13 @@ for f in range(NEW_TOTAL):
 enc.stdin.close(); enc.wait()
 print("наложение готово")
 
-m = run(["ffmpeg", "-nostdin", "-i", base_a, "-af", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"]).stderr
-j = json.loads(m[m.rindex("{"):m.rindex("}") + 1])
-ln = (f"loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}:"
-      f"measured_thresh={j['input_thresh']}:offset={j['target_offset']}:linear=true")
-final = f"{OUT}/рилс_новый_v1.mp4"
-run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", base_a, "-af", ln, "-map", "0:v", "-map", "1:a", "-c:v", "copy",
-     "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-shortest", final])
+music = f"{OUT}/music.wav"
+run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur + 0.5:.2f}", music])
+final = f"{OUT}/рилс_новый_v2_музыка.mp4"
+af = ("[1:a]volume=-12dB[m];[2:a]asplit=2[v][vs];[m][vs]sidechaincompress=threshold=0.035:ratio=4:attack=12:release=240[md];"
+      "[v][md]amix=inputs=2:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
+run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", music, "-i", base_a, "-filter_complex", af, "-map", "0:v", "-map", "[a]",
+     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", final])
 json.dump({"caps": [[a / FPS, b / FPS, t] for a, b, t in caps], "blocks": B},
           open(f"{OUT}/timeline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("ГОТОВО:", final, f"{os.path.getsize(final)/1e6:.1f} МБ, {dur:.2f} с")
