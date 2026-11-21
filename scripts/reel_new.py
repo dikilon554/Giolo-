@@ -320,7 +320,7 @@ if os.path.exists(TRACK) and not os.path.exists(beats_json):
 bj = json.load(open(beats_json)) if os.path.exists(beats_json) else {"bpm": 123.0, "b0": 0.0, "start": 0.0}
 BEAT = 60 / bj["bpm"]
 START = float(os.environ.get("TRACK_START", bj["start"]))        # трек стартует на ударе -> удары в ролике: k * BEAT
-PULSE = float(os.environ.get("PULSE", "0.026"))                  # «пульс» картинки на каждый удар (доля масштаба)
+PULSE = float(os.environ.get("PULSE", "0"))                      # зумы по битам убраны по просьбе                  # «пульс» картинки на каждый удар (доля масштаба)
 
 # смена крупности на аватаре: чётные фразы 1.0x, нечётные 1.10x (мгновенно, без анимированного зума)
 punch = np.ones(NEW_TOTAL)
@@ -362,23 +362,26 @@ for f in range(NEW_TOTAL):
 enc.stdin.close(); enc.wait(); dec.stdout.close(); dec.wait()
 print("наложение готово")
 
-# музыка: трек пользователя, ярче и громче, под голосом с приглушением на речи
-MIX_DB = float(os.environ.get("MIX_DB", "-7"))
+# музыка: начинается ПОСЛЕ слов «просто сделай вот это» (на первой записи экрана), на ударе; тише и не перебивает голос
+MIX_DB = float(os.environ.get("MIX_DB", "-9.5"))
+t_m = next(bl for bl in B if bl["kind"] == "clip")["f0"] / FPS        # момент вступления музыки = начало первой записи экрана
 if os.path.exists(TRACK):
     music = f"{OUT}/music_track.wav"
-    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-    final = f"{OUT}/рилс_новый_v4_динамика.mp4"
+    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur - t_m + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
+    final = f"{OUT}/рилс_новый_v5_тише.mp4"
 else:
     music = f"{OUT}/music.wav"
-    run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur + 0.5:.2f}", music])
+    run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur - t_m + 0.5:.2f}", music])
     final = f"{OUT}/рилс_новый_v2_музыка.mp4"
+ms = int(round(t_m * 1000))
 af = ("[1:a]highpass=f=40,equalizer=f=60:t=o:w=1.2:g=-2,equalizer=f=2500:t=o:w=1.5:g=3,equalizer=f=5000:t=o:w=2:g=3,highshelf=f=8000:g=7,"
       "acompressor=threshold=-20dB:ratio=3:attack=4:release=90:makeup=4,"
-      f"afade=t=in:st=0:d=0.005,afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[2:a]asplit=2[v][vs];"
-      "[m][vs]sidechaincompress=threshold=0.04:ratio=3:attack=12:release=240[md];"
+      f"afade=t=in:st=0:d=0.06,afade=t=out:st={dur - t_m - 1.4:.2f}:d=1.4,volume={MIX_DB}dB,adelay={ms}|{ms}[m];[2:a]asplit=2[v][vs];"
+      "[m][vs]sidechaincompress=threshold=0.04:ratio=4:attack=12:release=240[md];"
       "[v][md]amix=inputs=2:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", music, "-i", base_a, "-filter_complex", af, "-map", "0:v", "-map", "[a]",
      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", final])
+print(f"музыка вступает на {t_m:.2f} с")
 json.dump({"caps": [[a / FPS, b / FPS, t] for a, b, t in caps], "blocks": B},
           open(f"{OUT}/timeline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("ГОТОВО:", final, f"{os.path.getsize(final)/1e6:.1f} МБ, {dur:.2f} с")
