@@ -5,6 +5,7 @@
 Запуск: /home/user/gigaam-venv/bin/python scripts/reel_new.py
 Исходники не трогаются, результат в монтаж_2026-11-19/новый_рилс/."""
 import json, os, re, subprocess, sys
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -297,7 +298,7 @@ def frame_overlay(f):
         draw_card(img, f)
     for f0, f1, t in caps:
         if f0 <= f < f1:
-            e = (f - f0) / FPS; sc = 1 + 0.10 * (1 - min(e / 0.10, 1)) ** 2
+            e = (f - f0) / FPS; sc = 1 + 0.16 * (1 - min(e / 0.12, 1)) ** 2
             lyr = text_layer_cache[t]
             if sc > 1.001: lyr = lyr.resize((int(W * sc), int(lyr.size[1] * sc)), Image.LANCZOS)
             paste_center(img, lyr, W // 2, cy_for(f))
@@ -309,35 +310,72 @@ def frame_overlay(f):
     return img
 
 
-# ----------------------------------------------------------------------- 7. наложение + звук + экспорт
+# ----------------------------------------------------------------------- 7. наложение, динамика, звук, экспорт
 vid = f"{OUT}/video_noaudio.mp4"
 dur = NEW_TOTAL / FPS
-enc = subprocess.Popen(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", stage2,
-                        "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-                        "-filter_complex", "[1:v]format=rgba,scale=out_color_matrix=bt709:out_range=tv,format=yuva420p[o];"
-                        "[0:v][o]overlay=0:0:format=auto,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[v]",
-                        "-map", "[v]", "-r", str(FPS), "-c:v", "libx264", "-profile:v", "high", "-b:v", "20M", "-maxrate", "24M",
-                        "-bufsize", "40M", "-preset", "medium", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709",
-                        "-color_trc", "bt709", "-t", f"{dur:.3f}", vid], stdin=subprocess.PIPE)
+TRACK = f"{ROOT}/исходники/музыка/music_source.mp4"
+beats_json = f"{OUT}/beats.json"
+if os.path.exists(TRACK) and not os.path.exists(beats_json):
+    run([sys.executable, f"{ROOT}/scripts/track_beats.py", TRACK, beats_json])
+bj = json.load(open(beats_json)) if os.path.exists(beats_json) else {"bpm": 123.0, "b0": 0.0, "start": 0.0}
+BEAT = 60 / bj["bpm"]
+START = float(os.environ.get("TRACK_START", bj["start"]))        # трек стартует на ударе -> удары в ролике: k * BEAT
+PULSE = float(os.environ.get("PULSE", "0.026"))                  # «пульс» картинки на каждый удар (доля масштаба)
+
+# смена крупности на аватаре: чётные фразы 1.0x, нечётные 1.10x (мгновенно, без анимированного зума)
+punch = np.ones(NEW_TOTAL)
+av_sent = [(0, 5), (6, 14), (43, 58), (90, 101), (102, 110), (125, 129), (130, 137)]
+for si, (w0, w1) in enumerate(av_sent):
+    f0 = new_f(sT(w0)) if si else 0
+    f1 = new_f(sT(av_sent[si + 1][0])) if si + 1 < len(av_sent) else NEW_TOTAL
+    f1 = min(f1, next(bl["f1"] for bl in B if bl["kind"] == "avatar" and bl["f0"] <= f0 < bl["f1"]) if any(bl["kind"] == "avatar" and bl["f0"] <= f0 < bl["f1"] for bl in B) else f1)
+    if si % 2 == 1: punch[f0:f1] = 1.10
+
+
+def zoom(img, z):
+    if z <= 1.0005: return img
+    return cv2.warpAffine(img, np.float32([[z, 0, (1 - z) * W / 2], [0, z, (1 - z) * 930]]), (W, H), flags=cv2.INTER_LINEAR)
+
+
+dec = subprocess.Popen(["ffmpeg", "-nostdin", "-v", "error", "-i", stage2, "-vf",
+                        "scale=in_range=tv:out_range=pc:in_color_matrix=bt709,format=rgb24", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                       stdout=subprocess.PIPE)
+enc = subprocess.Popen(["ffmpeg", "-nostdin", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
+                        "-vf", "scale=in_range=pc:out_range=tv:out_color_matrix=bt709:flags=accurate_rnd,format=yuv420p",
+                        "-r", str(FPS), "-c:v", "libx264", "-profile:v", "high", "-b:v", "20M", "-maxrate", "24M", "-bufsize", "40M",
+                        "-preset", "medium", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+                        "-t", f"{dur:.3f}", vid], stdin=subprocess.PIPE)
+fsz = W * H * 3
 for f in range(NEW_TOTAL):
-    enc.stdin.write(frame_overlay(f).tobytes())
-enc.stdin.close(); enc.wait()
+    buf = dec.stdout.read(fsz)
+    if len(buf) < fsz: break
+    base = np.frombuffer(buf, np.uint8).reshape(H, W, 3)
+    t = f / FPS; dt = t % BEAT
+    z = punch[f] * (1 + PULSE * np.exp(-dt / 0.11))              # удар -> резкий «прыжок» масштаба, затухает за ~0.2 с
+    base = zoom(base, z).copy()
+    ov = frame_overlay(f); bb = ov.getbbox()
+    if bb:
+        a_ = np.asarray(ov.crop(bb)); al = a_[..., 3:4].astype(np.float32) / 255.0
+        reg = base[bb[1]:bb[3], bb[0]:bb[2]].astype(np.float32)
+        base[bb[1]:bb[3], bb[0]:bb[2]] = (reg * (1 - al) + a_[..., :3].astype(np.float32) * al).astype(np.uint8)
+    enc.stdin.write(base.tobytes())
+enc.stdin.close(); enc.wait(); dec.stdout.close(); dec.wait()
 print("наложение готово")
 
-# музыка: трек пользователя (если есть), иначе синтезированный запасной
-TRACK = f"{ROOT}/исходники/музыка/music_source.mp4"
-MIX_DB = float(os.environ.get("MIX_DB", "-11"))
+# музыка: трек пользователя, ярче и громче, под голосом с приглушением на речи
+MIX_DB = float(os.environ.get("MIX_DB", "-7"))
 if os.path.exists(TRACK):
     music = f"{OUT}/music_track.wav"
-    START = float(os.environ.get("TRACK_START", "0"))           # откуда брать трек (с); 0 = его собственное нарастание
-    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START}", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-    final = f"{OUT}/рилс_новый_v3_трек.mp4"
+    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
+    final = f"{OUT}/рилс_новый_v4_динамика.mp4"
 else:
     music = f"{OUT}/music.wav"
     run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur + 0.5:.2f}", music])
     final = f"{OUT}/рилс_новый_v2_музыка.mp4"
-af = (f"[1:a]afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[2:a]asplit=2[v][vs];"
-      "[m][vs]sidechaincompress=threshold=0.035:ratio=4:attack=12:release=240[md];"
+af = ("[1:a]highpass=f=40,equalizer=f=60:t=o:w=1.2:g=-2,equalizer=f=2500:t=o:w=1.5:g=3,equalizer=f=5000:t=o:w=2:g=3,highshelf=f=8000:g=7,"
+      "acompressor=threshold=-20dB:ratio=3:attack=4:release=90:makeup=4,"
+      f"afade=t=in:st=0:d=0.005,afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[2:a]asplit=2[v][vs];"
+      "[m][vs]sidechaincompress=threshold=0.04:ratio=3:attack=12:release=240[md];"
       "[v][md]amix=inputs=2:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", music, "-i", base_a, "-filter_complex", af, "-map", "0:v", "-map", "[a]",
      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", final])
