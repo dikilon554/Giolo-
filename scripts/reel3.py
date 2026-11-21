@@ -241,11 +241,11 @@ def rcard(path, size, r=22):
     return o
 
 
-_b = Image.open(f"{CL}/IMG_20261121_143230_904.jpg").convert("RGB").crop((0, 0, 990, 365)); _b.save(f"{OUT}/_banner_crop.png")
-banner = rcard(f"{OUT}/_banner_crop.png", (400, 148))
+_b = Image.open(f"{CL}/IMG_20261121_143230_904.jpg").convert("RGB").crop((0, 0, 1050, 365)); _b.save(f"{OUT}/_banner_crop.png")
+banner = rcard(f"{OUT}/_banner_crop.png", (620, 216))
 chatlogo = rcard(f"{ROOT}/исходники/chatgpt_logo.png", (640, 360), 26)
 bl_ban = next(bl for bl in B if bl.get("name") == "banner"); bl_chat = next(bl for bl in B if bl.get("name") == "chatgpt")
-BAN_POS, CHAT_POS = (660, 520), (220, 60)
+BAN_POS, CHAT_POS = (230, 196), (220, 60)
 
 
 def card_alpha(f, f0, f1):
@@ -336,7 +336,7 @@ t_m = next(bl for bl in B if bl["kind"] == "clip")["f0"] / FPS        # моме
 if os.path.exists(TRACK):
     music = f"{OUT}/music_track.wav"
     run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur - t_m + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-    final = f"{OUT}/рилс3_v1.mp4"
+    final = f"{OUT}/рилс3_v2.mp4"
 else:
     music = f"{OUT}/music.wav"
     run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur - t_m + 0.5:.2f}", music])
