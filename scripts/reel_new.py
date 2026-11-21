@@ -324,10 +324,20 @@ for f in range(NEW_TOTAL):
 enc.stdin.close(); enc.wait()
 print("наложение готово")
 
-music = f"{OUT}/music.wav"
-run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur + 0.5:.2f}", music])
-final = f"{OUT}/рилс_новый_v2_музыка.mp4"
-af = ("[1:a]volume=-12dB[m];[2:a]asplit=2[v][vs];[m][vs]sidechaincompress=threshold=0.035:ratio=4:attack=12:release=240[md];"
+# музыка: трек пользователя (если есть), иначе синтезированный запасной
+TRACK = f"{ROOT}/исходники/музыка/music_source.mp4"
+MIX_DB = float(os.environ.get("MIX_DB", "-11"))
+if os.path.exists(TRACK):
+    music = f"{OUT}/music_track.wav"
+    START = float(os.environ.get("TRACK_START", "0"))           # откуда брать трек (с); 0 = его собственное нарастание
+    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START}", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
+    final = f"{OUT}/рилс_новый_v3_трек.mp4"
+else:
+    music = f"{OUT}/music.wav"
+    run([sys.executable, f"{ROOT}/scripts/music_hype.py", f"{dur + 0.5:.2f}", music])
+    final = f"{OUT}/рилс_новый_v2_музыка.mp4"
+af = (f"[1:a]afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[2:a]asplit=2[v][vs];"
+      "[m][vs]sidechaincompress=threshold=0.035:ratio=4:attack=12:release=240[md];"
       "[v][md]amix=inputs=2:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-i", vid, "-i", music, "-i", base_a, "-filter_complex", af, "-map", "0:v", "-map", "[a]",
      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", "-t", f"{dur:.3f}", final])
