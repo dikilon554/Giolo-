@@ -13,7 +13,8 @@ FPS, W, H = 25, 1080, 1920
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AV = f"{ROOT}/исходники/рилс9/VID_20261125_203659_083.mp4"
 CL = f"{ROOT}/исходники/рилс9"
-RESULT = None
+RESULT = f"{CL}/VID_20261125_203538_776.mp4"
+GRADE = "eq=brightness=-0.20:contrast=1.22:saturation=0.72:gamma=0.80,colorbalance=rs=-0.05:bs=0.08:rm=-0.04:bm=0.06,vignette=PI/3.8"   # мрачный ночной вид, как у конкурента
 OUT = f"{ROOT}/монтаж_2026-11-25/рилс9"; os.makedirs(OUT, exist_ok=True)
 FM = f"{ROOT}/assets/fonts/Montserrat_800ExtraBold.ttf"
 EMOJI = "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
@@ -108,8 +109,16 @@ print(f"якорей времени: {len(XX)}")
 # ----------------------------------------------------------------------- 4. раскладка блоков (по новому времени)
 bd = lambda a, b: (eT(a) + sT(b)) / 2                    # граница между фразами = середина паузы
 LEAD = 3
-blocks = [  # stage2: аватар одним планом; на весь экран — только выплаты и демо
-    ("avatar", 0.0, bd(112, 113), {"zoom": 1.0, "name": "hook"}),
+blocks = [  # stage2: до «Заходишь на YouTube» аватар с маленькими окнами, дальше все вставки на весь экран
+    ("avatar", 0.0, bd(64, 65), {"zoom": 1.0, "name": "hook"}),
+    ("clip", bd(64, 65), bd(67, 68), {"file": "ЗАХОД В ЮТУБ", "speed": 0.66, "cy": 1500}),
+    ("clip", bd(67, 68), bd(71, 72), {"file": "VID_20261125_203534_550.mp4", "ss": 0.3, "speed": 1.0, "cy": 1840}),
+    ("clip", bd(71, 72), bd(74, 75), {"file": "ЗАХОД В CHATGPT", "speed": 1.0, "cy": 1700}),
+    ("clip", bd(74, 75), bd(83, 84) - 0.30, {"file": "VID_20261125_203534_677.mp4", "ss": 0.1, "speed": 0.87, "cy": 1500}),
+    ("clip", bd(83, 84) - 0.30, bd(84, 85) + 0.10, {"file": "VID_20261125_203535_139.mp4", "ss": 1.9, "speed": 1.0, "cy": 1700}),
+    ("clip", bd(84, 85) + 0.10, bd(96, 97), {"file": "VID_20261125_203531_218.mp4", "ss": 0.5, "speed": 1.0, "cy": 1760}),
+    ("clip", bd(96, 97), bd(99, 100), {"file": "VID_20261125_203531_236.mp4", "ss": 1.3, "speed": 1.0, "cy": 1760}),
+    ("result", bd(99, 100), bd(112, 113), {"ss": 1.8, "speed": 1.0, "cy": 1500}),
     ("clip", bd(112, 113), bd(121, 122), {"file": "VID_20261125_203541_048.mp4", "ss": 1.0, "speed": 1.0, "cy": 1650}),
     ("avatar", bd(121, 122), bd(133, 134), {"zoom": 1.0, "name": "ctaav"}),
     ("demo", bd(133, 134), TOTAL, {"cy": 1856}),
@@ -118,14 +127,6 @@ blocks = [  # stage2: аватар одним планом; на весь экр
 WINS = [
     ("СКОЛЬКО ЮТУБ ПЛАТИТ",                0.4, 1.00, (0, 400, 720, 300), (700, 292), bd(49, 50), bd(57, 58)),
     ("VID_20261125_203535_306.mp4",        0.0, 0.69, (0, 200, 720, 240), (700, 233), bd(57, 58), bd(64, 65)),
-    ("ЗАХОД В ЮТУБ",                       0.0, 0.80, (0, 460, 720, 240), (700, 233), bd(64, 65), bd(67, 68)),
-    ("VID_20261125_203534_550.mp4",        0.3, 1.00, (0, 780, 720, 240), (700, 233), bd(67, 68), bd(71, 72)),
-    ("ЗАХОД В CHATGPT",                    0.0, 1.00, (0, 280, 720, 300), (700, 292), bd(71, 72), bd(74, 75)),
-    ("VID_20261125_203534_677.mp4",        0.1, 0.87, (0, 480, 720, 240), (700, 233), bd(74, 75), bd(83, 84) - 0.30),
-    ("VID_20261125_203535_139.mp4",        2.0, 1.00, (0, 380, 720, 300), (700, 292), bd(83, 84) - 0.30, bd(84, 85) + 0.10),
-    ("VID_20261125_203531_218.mp4",        0.5, 1.00, (0, 760, 720, 300), (700, 292), bd(84, 85) + 0.10, bd(96, 97)),
-    ("VID_20261125_203531_236.mp4",        1.5, 1.00, (0, 800, 720, 240), (700, 233), bd(96, 97), bd(99, 100)),
-    ("VID_20261125_203538_776.mp4",        1.8, 1.00, "pan",              (252, 448), bd(99, 100), bd(112, 113)),
 ]
 B = []
 for i, (kind, a, b, p) in enumerate(blocks):
@@ -155,15 +156,15 @@ inputs, parts = ["-i", base_v], []
 for i, bl in enumerate(B):
     n = bl["f1"] - bl["f0"]
     if bl["kind"] == "avatar":
-        parts.append(f"[0:v]trim=start_frame={bl['f0']}:end_frame={bl['f1']},setpts=PTS-STARTPTS,setsar=1[v{i}]")
+        parts.append(f"[0:v]trim=start_frame={bl['f0']}:end_frame={bl['f1']},setpts=PTS-STARTPTS,{GRADE},setsar=1[v{i}]")
     elif bl["kind"] == "demo":
         k = len(inputs) // 2; inputs += ["-i", DEMO]
         parts.append(f"[{k}:v]setpts=(PTS-STARTPTS)/{bl['speed']:.5f},fps={FPS},trim=end_frame={n},setpts=PTS-STARTPTS,"
                      f"scale={W}:-2:flags=lanczos,pad={W}:{H}:0:(oh-ih)/2:color=0x0b0b0b,format=yuv420p,setsar=1[v{i}]")
     elif bl["kind"] == "result":
         k = len(inputs) // 2; inputs += ["-i", RESULT]
-        parts.append(f"[{k}:v]setpts=(PTS-STARTPTS)/{bl.get('speed', 1.0)},fps={FPS},trim=end_frame={n},setpts=PTS-STARTPTS,"
-                     f"scale=-2:{H}:flags=lanczos,crop={W}:{H}:x='(in_w-{W})*(3*pow(min(t/{n / FPS:.3f},1),2)-2*pow(min(t/{n / FPS:.3f},1),3))':y=0,format=yuv420p,setsar=1[v{i}]")
+        parts.append(f"[{k}:v]trim=start={bl.get('ss', 0.0)},setpts=PTS-STARTPTS,setpts=PTS/{bl.get('speed', 1.0)},fps={FPS},trim=end_frame={n},setpts=PTS-STARTPTS,"
+                     f"scale=-2:{H}:flags=lanczos,crop={W}:{H}:x='(in_w-{W})*(0.27+0.30*(3*pow(min(t/{n / FPS:.3f},1),2)-2*pow(min(t/{n / FPS:.3f},1),3)))':y=0,format=yuv420p,setsar=1[v{i}]")
     else:
         k = len(inputs) // 2; inputs += ["-i", f"{CL}/{bl['file']}"]
         _cs = run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=color_space", "-of", "csv=p=0", f"{CL}/{bl['file']}"]).stdout.strip()
@@ -388,7 +389,7 @@ def paste_center(img, lyr, cx, cy):
 
 def frame_overlay(f):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    if bl_hook["f0"] <= f < bl_hook["f1"] and active_win(f) is None:
+    if bl_hook["f0"] <= f < bl_hook["f1"] and active_win(f) is None and any(bl["kind"] == "avatar" and bl["f0"] <= f < bl["f1"] for bl in B):
         e = (f - bl_hook["f0"]) / FPS; sc = 1 + 0.12 * (1 - min(e / 0.16, 1)) ** 2
         hh = hook_full if sc <= 1.001 else hook_full.resize((int(W * sc), int(hook_full.size[1] * sc)), Image.LANCZOS)
         img.alpha_composite(faded(hh, max(0.0, card_alpha(f, bl_hook["f0"], bl_hook["f1"]))), ((W - hh.size[0]) // 2, 130))
@@ -468,7 +469,7 @@ MIX_DB = float(os.environ.get("MIX_DB", "-13"))
 t_m = 0.0                                   # музыка с самого начала, с хука
 music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", f"{START:.3f}", "-i", TRACK, "-t", f"{dur - t_m + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-final = f"{OUT}/рилс9_v1.mp4"
+final = f"{OUT}/рилс9_v2.mp4"
 ms = int(round(t_m * 1000))
 af = (f"[1:a]highpass=f=55,afade=t=in:st=0:d=0.06,afade=t=out:st={dur - t_m - 1.4:.2f}:d=1.4,volume={MIX_DB}dB,adelay={ms}|{ms}[m];[3:a]volume=-4dB[c];[2:a]asplit=2[v][vs];"
       "[m][vs]sidechaincompress=threshold=0.02:ratio=8:attack=8:release=300[md];"
