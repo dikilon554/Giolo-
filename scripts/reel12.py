@@ -286,7 +286,7 @@ def static_win(path, crop, size, t0, t1):
 WINSZ = (700, 288)
 IMGW = [  # (файл, кроп x,y,w,h, размер, слово начала, слово конца) — время окна по словам
     ("IMG_20261126_192243_152.jpg", (640, 60, 640, 262), WINSZ, None, None),
-    ("IMG_20261126_192251_087.jpg", (0, 800, 1081, 445), WINSZ, None, None),
+    (f"{OUT}/доход_без_знака.png", (0, 800, 1081, 445), WINSZ, None, None),     # копия скриншота без водяного знака @nbvbusiness
 ]
 PIP_F0 = 2
 PIP_SS_ = 1.4                                                    # «Sarah»: с 1,4 с (глаза -> руки), реплика «from today on, you\'re my daughter» попадает в окно
@@ -297,7 +297,7 @@ A_F0, A_F1 = PIP_END, new_f(bd(12, 13))                    # «и принося
 B_F0, B_F1 = new_f(bd(12, 13)), new_f(bd(20, 21))               # «Я это знаю, потому что сам так делаю» -> Estimated revenue
 win_data = []
 for (path, crop, size, _, _), (f0, f1) in zip(IMGW, [(A_F0, A_F1), (B_F0, B_F1)]):
-    im = Image.open(f"{CL}/{path}").convert("RGB").crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3])).resize(size, Image.LANCZOS)
+    im = Image.open(os.path.join(CL, path)).convert("RGB").crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3])).resize(size, Image.LANCZOS)
     win_data.append((f0, f1, np.asarray(im, np.uint8)[None]))
 SARAH = f"{CL}/VID_20261126_192253_521.mp4"
 _cs = run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=color_space", "-of", "csv=p=0", SARAH]).stdout.strip()
