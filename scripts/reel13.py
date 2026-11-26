@@ -145,7 +145,7 @@ blocks = [  # слова: индексы avatar_combined.words.json (хук 0–
     ("clip", bd(83, 84), bd(84, 85), {"file": "VID_20261126_200820_994.mp4", "ss": 0.5, "speed": 1.0, "cy": 1700}),
     ("clip", bd(84, 85), bd(96, 97), {"file": "VID_20261126_200820_982.mp4", "ss": 0.0, "speed": "auto", "cy": 1700}),
     ("clip", bd(96, 97), bd(99, 100), {"file": "VID_20261126_200821_012.mp4", "ss": "end", "speed": 1.0, "cy": 1700}),
-    ("readyh", bd(99, 100), bd(112, 113), {"file": "VID_20261126_200255_476.mp4", "ss": 0.5, "speed": 1.0, "cy": 1560, "crop": "crop=960:720:160:0", "audio": True}),
+    ("readyh", bd(99, 100), bd(112, 113), {"file": "VID_20261126_200255_476.mp4", "ss": 0.5, "speed": 1.0, "cy": 1560, "crop": "crop=960:720:160:0", "audio": False}),   # «Маяк» без звука (решение пользователя)
     ("readyh", bd(112, 113), bd(121, 122), {"file": "VID_20261126_200242_076.mp4", "ss": "end", "speed": 1.0, "cy": 1500, "crop": "crop=810:395:205:360"}),
     ("avatar", bd(121, 122), bd(133, 134), {"zoom": 1.0, "name": "stop"}),
     ("demo", bd(133, 134), TOTAL, {"cy": 1856}),
@@ -499,7 +499,7 @@ TRACK = f"{CL}/track_new_185720_832.mp4"                 # «Insensible Aminos»
 MIX_DB = float(os.environ.get("MIX_DB", "-13"))
 music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", "0", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-final = f"{OUT}/рилс13_v2.mp4"
+final = f"{OUT}/рилс13_v3.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-8"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
@@ -510,7 +510,10 @@ for k_, (pth, ss_, t0_, d_, sp_) in enumerate(segs):
                f"afade=t=in:st=0:d=0.08,afade=t=out:st={max(d_ - 0.18, 0):.3f}:d=0.18,adelay={int(t0_ * 1000)}|{int(t0_ * 1000)}[s{k_}]")
 cf_.append(f"[s0]apad=whole_dur={dur + 0.5:.2f}[o]")
 clipaud = f"{OUT}/clip_audio.wav"
-run(["ffmpeg", "-nostdin", "-y", "-v", "error", *cin, "-filter_complex", ";".join(cf_), "-map", "[o]", "-ar", "48000", "-ac", "2", clipaud])
+if segs:
+    run(["ffmpeg", "-nostdin", "-y", "-v", "error", *cin, "-filter_complex", ";".join(cf_), "-map", "[o]", "-ar", "48000", "-ac", "2", clipaud])
+else:                                                # роликов со звуком нет: тихая дорожка нужной длины
+    run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{dur + 0.5:.2f}", clipaud])
 af = (f"[1:a]highpass=f=55,afade=t=in:st=0:d=0.06,afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[3:a]volume=-4dB[c];"
       f"[4:a]volume={CLIP_DB}dB[ca0];[2:a]asplit=2[v][vs];"
       "[ca0]asplit=2[ca][cak];"
