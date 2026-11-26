@@ -153,7 +153,7 @@ blocks = [  # слова: индексы avatar_combined.words.json (хук 0–
 # маленькие окна над головой (как у конкурента): (файл, ss, speed, crop x,y,w,h в исходнике, размер окна, t0, t1)
 WINS = [
     ("СКОЛЬКО ЮТУБ ПЛАТИТ",   0.4, 1.00, (0, 400, 720, 300), (700, 292), bd(49, 50), bd(57, 58)),
-    ("СКОЛЬКО ПЛАТИТ ТИКТОК", 0.0, 0.70, (0, 520, 720, 300), (700, 292), bd(57, 58), bd(64, 65)),
+    ("VID_20261126_205601_609.mp4", 0.05, 1.00, (0, 410, 1080, 450), (700, 292), bd(57, 58), bd(64, 65)),   # просмотры ролика (8 362 461): вставка пользователя вместо выплат TikTok
 ]
 B = []
 for i, (kind, a, b, p) in enumerate(blocks):
@@ -499,7 +499,7 @@ TRACK = f"{CL}/track_new_185720_832.mp4"                 # «Insensible Aminos»
 MIX_DB = float(os.environ.get("MIX_DB", "-13"))
 music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", "0", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-final = f"{OUT}/рилс13_v1.mp4"
+final = f"{OUT}/рилс13_v2.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-8"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
