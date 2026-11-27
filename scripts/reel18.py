@@ -110,12 +110,12 @@ print(f"якорей времени: {len(XX)}")
 # ----------------------------------------------------------------------- 4. раскладка блоков (по новому времени)
 bd = lambda a, b: (eT(a) + sT(b)) / 2                    # граница между фразами = середина паузы
 # аватар останавливается: на этих границах вставлен блок (аватар молчит, идёт вставка со звуком)
-HOLDL = [(0.0, 293)]                      # приманка 11,7 с (только русская часть озвучки) до аватара
+HOLDL = [(0.0, 286)]                      # приманка 11,45 с с русской озвучкой (mp3 пользователя) до аватара
 NEW_TOTAL += sum(n for _, n in HOLDL)
 def new_f(t): return new_f0(t) + sum(n for H, n in HOLDL if H < t - 1e-6)
 LEAD = 3
 blocks = [  # слова: индексы VID_20261127_181453_033.words.json
-    ("readyh", None, None, {"hold": 11.72, "file": "VID_20261127_181458_093.mp4", "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
+    ("readyh", None, None, {"hold": 11.45, "file": "VID_20261127_181458_093.mp4", "afile": "bait_ru.mp3", "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
     ("avatar", 0.0, bd(12, 13), {"zoom": 1.0, "name": "a1"}),
     ("clip", bd(12, 13), bd(19, 20), {"file": "VID_20261127_181455_462.mp4", "ss": "end", "speed": 1.0, "cy": 1700}),     # «Вот похожий… просмотров»: на весь экран
     ("avatar", bd(19, 20), bd(32, 33), {"zoom": 1.0, "name": "a1b"}),
@@ -609,10 +609,10 @@ _parts.append(_a0[_pos:])
 base_a = f"{OUT}/base_audio_hold.wav"
 with _wv.open(base_a, "wb") as _w1:
     _w1.setnchannels(2); _w1.setsampwidth(2); _w1.setframerate(_sr0); _w1.writeframes(np.concatenate(_parts).astype("<i2").tobytes())
-final = f"{OUT}/рилс18_v2.mp4"
+final = f"{OUT}/рилс18_v3.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-3"))
-segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
+segs = [(f"{CL}/{bl.get('afile', bl['file'])}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
 cin, cf_ = [], []
 for k_, (pth, ss_, t0_, d_, sp_) in enumerate(segs):
     cin += ["-i", pth]
