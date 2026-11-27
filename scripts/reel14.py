@@ -117,7 +117,8 @@ blocks = [  # слова: индексы VID_20261127_160827_984.words.json
     ("avatar", bd(30, 31), bd(37, 38), {"zoom": 1.0, "name": "a2"}),
     ("clip", bd(37, 38), bd(41, 42), {"file": "рилс_шукура", "ss": 12.46, "end": 13.76, "speed": "auto", "cy": 1700,
                                      "vf_extra": "drawbox=x=0:y=1440:w=1080:h=130:color=black:t=fill"}),    # заставка Forge Vision из рилса Шукура; его вшитая строка закрыта чёрным
-    ("avatar", bd(41, 42), bd(49, 50), {"zoom": 1.0, "name": "a3"}),
+    ("clip", bd(41, 42), bd(49, 50), {"file": "рилс_шукура", "ss": 13.76, "end": 16.60, "speed": "auto", "cy": 1700,
+                                     "vf_extra": "drawbox=x=0:y=1440:w=1080:h=130:color=black:t=fill"}),    # продолжение заставки: сайт Forge Vision вместо аватара на «машина по производству…»
     ("clip", bd(49, 50), bd(53, 54), {"file": "ЛИСТАНИЕ БИБЛИОТЕКИ СТИЛЕЙ", "ss": 0.0, "speed": "auto", "cy": 1700}),
     ("clip", bd(53, 54), bd(59, 60), {"file": "video_20261127_154319.mp4", "ss": 0.0, "speed": "auto", "cy": 1700}),
     ("clip", bd(59, 60), bd(70, 71), {"file": "VID_20261127_160809_764.mp4", "ss": 0.0, "speed": "auto", "cy": 1700}),
@@ -489,7 +490,7 @@ TRACK = f"{CL}/track_new_185720_832.mp4"                 # «Insensible Aminos»
 MIX_DB = float(os.environ.get("MIX_DB", "-13"))
 music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", f"{dur + 0.5:.2f}", music])        # музыки нет (решение пользователя)
-final = f"{OUT}/рилс14_v1.mp4"
+final = f"{OUT}/рилс14_v2.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-8"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
