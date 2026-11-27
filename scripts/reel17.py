@@ -294,7 +294,7 @@ hook_full = text_layer([[(_pt, WHITE)]], _pz, 7, emojis=["\U0001F91D"])
 _gz = 54
 while max(fnt(_gz).getlength("Подарки первым пользователям") + _gz * 1.2, fnt(_gz).getlength("ссылка в шапке профиля")) > 980: _gz -= 2
 gift_plate = text_layer([[("Подарки первым пользователям", WHITE)], [("ссылка в шапке профиля", YEL)]], _gz, 7, emojis=["\U0001F381", None], gap=1.2)
-HOOK_Y = 34
+HOOK_Y = 150
 _hb = next(bl for bl in B if bl.get("name") == "hook")
 bl_hook = {"f0": 0, "f1": _hb["f1"]}              # плашка на аватаре до вставок; на время окон прячется (как в рилсе 9)
 HOOK_POS = (0, 70)
@@ -423,7 +423,7 @@ def paste_center(img, lyr, cx, cy):
 def frame_overlay(f):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     cur = next((bl for bl in B if bl["f0"] <= f < bl["f1"]), None)
-    if cur is not None and cur["kind"] in ("avatar", "hold3d"):          # плашка на аватаре (и над окном), на вставках на весь экран её нет
+    if cur is not None and cur["kind"] in ("avatar", "hold3d") and active_win(f) is None:          # плашка на аватаре (и над окном), на вставках на весь экран её нет
         pl = gift_plate if cur.get("name") == "gift" else hook_full
         _g = GRPS.get(cur.get("grp"), [cur["f0"], cur["f1"]]); cur = {**cur, "f0": _g[0], "f1": _g[1]}
         e = (f - cur["f0"]) / FPS; sc = 1 + 0.12 * (1 - min(e / 0.16, 1)) ** 2
@@ -514,7 +514,7 @@ _parts.append(_a0[_pos:])
 base_a = f"{OUT}/base_audio_hold.wav"
 with _wv.open(base_a, "wb") as _w1:
     _w1.setnchannels(2); _w1.setsampwidth(2); _w1.setframerate(_sr0); _w1.writeframes(np.concatenate(_parts).astype("<i2").tobytes())
-final = f"{OUT}/рилс17_v2.mp4"
+final = f"{OUT}/рилс17_v3.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-3"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
