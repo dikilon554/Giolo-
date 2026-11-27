@@ -118,7 +118,7 @@ LEAD = 3
 BOX = "drawbox=x=0:y=1440:w=1080:h=130:color=black:t=fill"
 blocks = [  # слова: индексы VID_20261127_173814_657.words.json
     ("avatar", 0.0, H1, {"zoom": 1.0, "name": "hook", "grp": "hook"}),
-    ("hold3d", None, None, {"hold": 10.0, "file": "VID_20261127_173802_486.mp4", "ss": 0.0, "speed": 1.0, "audio": True, "grp": "hook"}),
+    ("clip", None, None, {"hold": 10.0, "file": "VID_20261127_173802_486.mp4", "ss": 0.0, "speed": 1.0, "audio": True, "cy": 1700}),     # 3D-мультик на весь экран, аватара нет
     ("avatar", H1, bd(36, 37), {"zoom": 1.0, "name": "a2", "grp": "hook"}),
     ("clip", bd(36, 37), bd(43, 44), {"file": "ЗАХОД В CHATGPT", "ss": 0.0, "speed": "auto", "cy": 1700}),
     ("clip", bd(43, 44), bd(52, 53), {"file": "VID_20261127_173805_924.mp4", "ss": 0.0, "speed": "auto", "cy": 1700}),
@@ -326,15 +326,6 @@ def static_win(path, crop, size, t0, t1):
 
 win_data.append(static_win("IMG_20261127_173803_665.jpg", (505, 20, 420, 250), (500, 298), sT(14), bd(18, 19)))      # 5 554 940 просмотров на «миллионы просмотров»
 win_data.append(static_win("IMG_20261127_160756_662.jpg", (290, 172, 270, 111), (700, 288), sT(89), bd(92, 93)))       # Studio на «получать выплаты»
-_h3 = next(bl for bl in B if bl["kind"] == "hold3d")
-_src = f"{CL}/{_h3['file']}"
-_cs3 = run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=color_space", "-of", "csv=p=0", _src]).stdout.strip()
-_n3 = _h3["f1"] - _h3["f0"]
-_raw3 = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-i", _src, "-vf",
-    f"fps={FPS},tpad=stop_mode=clone:stop_duration=3,trim=end_frame={_n3},zscale=filter=lanczos:matrixin={'709' if _cs3 in ('bt709', '', 'unknown') else '470bg'}:matrix=709:rangein=tv:range=tv,crop=360:216:0:80,scale=500:300:flags=lanczos,"
-    "scale=in_range=tv:out_range=pc:in_color_matrix=bt709,format=rgb24", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
-win_data.append((_h3["f0"], _h3["f1"], np.frombuffer(_raw3[: _n3 * 500 * 300 * 3], np.uint8).reshape(-1, 300, 500, 3)))
-print(f"  окно 3D: {_h3['f0']/FPS:.2f}-{_h3['f1']/FPS:.2f} с, кадров {len(win_data[-1][2])}/{_n3}")
 for sp, (f0, f1, arr) in zip(WINS, win_data):
     print(f"  окно {sp[0][-14:]:14} {f0/FPS:5.2f}-{f1/FPS:5.2f} с, кадров {len(arr)}/{f1-f0}, скорость x{sp[2]}")
 WIN_BOTTOM = 445
@@ -523,7 +514,7 @@ _parts.append(_a0[_pos:])
 base_a = f"{OUT}/base_audio_hold.wav"
 with _wv.open(base_a, "wb") as _w1:
     _w1.setnchannels(2); _w1.setsampwidth(2); _w1.setframerate(_sr0); _w1.writeframes(np.concatenate(_parts).astype("<i2").tobytes())
-final = f"{OUT}/рилс17_v1.mp4"
+final = f"{OUT}/рилс17_v2.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-3"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
