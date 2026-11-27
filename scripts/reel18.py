@@ -110,12 +110,12 @@ print(f"якорей времени: {len(XX)}")
 # ----------------------------------------------------------------------- 4. раскладка блоков (по новому времени)
 bd = lambda a, b: (eT(a) + sT(b)) / 2                    # граница между фразами = середина паузы
 # аватар останавливается: на этих границах вставлен блок (аватар молчит, идёт вставка со звуком)
-HOLDL = [(0.0, 286)]                      # приманка 11,45 с с русской озвучкой (mp3 пользователя) до аватара
+HOLDL = [(0.0, 283)]                      # приманка 11,3 с: второй дубль русской озвучки (3,8–15,1 с mp3), первый дубль вырезан
 NEW_TOTAL += sum(n for _, n in HOLDL)
 def new_f(t): return new_f0(t) + sum(n for H, n in HOLDL if H < t - 1e-6)
 LEAD = 3
 blocks = [  # слова: индексы VID_20261127_181453_033.words.json
-    ("readyh", None, None, {"hold": 11.45, "file": "VID_20261127_181458_093.mp4", "afile": "bait_ru.mp3", "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
+    ("readyh", None, None, {"hold": 11.3, "file": "VID_20261127_181458_093.mp4", "afile": "bait_ru.mp3", "ass": 3.8, "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
     ("avatar", 0.0, bd(12, 13), {"zoom": 1.0, "name": "a1"}),
     ("clip", bd(12, 13), bd(19, 20), {"file": "VID_20261127_181455_462.mp4", "ss": "end", "speed": 1.0, "cy": 1700}),     # «Вот похожий… просмотров»: на весь экран
     ("avatar", bd(19, 20), bd(32, 33), {"zoom": 1.0, "name": "a1b"}),
@@ -268,6 +268,7 @@ REPL = {"forgevision": "Forge Vision"}
 MERGE = {}
 cap_img = {}
 YEL = (255, 214, 10, 255)
+SCN_BAIT = 283
 caps = []                                              # [f0, f1, текст, жёлтый?]
 i = 0
 while i < len(words):
@@ -283,6 +284,16 @@ while i < len(words):
     i = i1 + 1
 for a_, b_ in zip(caps, caps[1:]):
     if a_[1] > b_[0]: a_[1] = b_[0]
+# субтитры на приманке (русская озвучка из mp3, второй дубль; время слов от 3,8 с mp3)
+_BAIT = [("посреди", 3.89, 4.45), ("иранской", 4.45, 5.07), ("пустыни", 5.07, 5.62), ("вода", 5.62, 6.05), ("выходит", 6.05, 6.55), ("из", 6.55, 6.78), ("песка", 6.78, 7.0),
+         ("из", 7.0, 7.3), ("гор", 7.3, 7.55), ("которых", 7.58, 7.88), ("вы", 7.9, 8.1), ("даже", 8.12, 8.3), ("не", 8.32, 8.46), ("видите", 8.48, 8.99),
+         ("она", 9.14, 9.5), ("течёт", 9.54, 9.86), ("уже", 9.88, 10.04), ("27", 10.06, 10.58), ("веков", 10.6, 11.2),
+         ("без", 11.46, 11.9), ("насосов", 11.92, 12.62), ("без", 12.7, 13.04), ("двигателей", 13.06, 14.0), ("без", 14.08, 14.28), ("электричества", 14.3, 15.1)]
+_BKEYS = {"27", "веков", "иранской", "пустыни", "электричества"}
+for _w, _a, _b in _BAIT:
+    _f0 = int(round((_a - 3.8) * FPS)); _f1 = int(round((_b - 3.8) * FPS))
+    if _f0 < SCN_BAIT: caps.insert(0, [_f0, min(max(_f1, _f0 + 3), SCN_BAIT), _w, _w in _BKEYS])
+caps.sort(key=lambda c: c[0])
 text_layer_cache = {}
 for _, _, t, k in caps:
     if (t, k) not in text_layer_cache:
@@ -609,10 +620,10 @@ _parts.append(_a0[_pos:])
 base_a = f"{OUT}/base_audio_hold.wav"
 with _wv.open(base_a, "wb") as _w1:
     _w1.setnchannels(2); _w1.setsampwidth(2); _w1.setframerate(_sr0); _w1.writeframes(np.concatenate(_parts).astype("<i2").tobytes())
-final = f"{OUT}/рилс18_v3.mp4"
+final = f"{OUT}/рилс18_v4.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-3"))
-segs = [(f"{CL}/{bl.get('afile', bl['file'])}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
+segs = [(f"{CL}/{bl.get('afile', bl['file'])}", bl.get("ass", bl["ss"]), bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
 cin, cf_ = [], []
 for k_, (pth, ss_, t0_, d_, sp_) in enumerate(segs):
     cin += ["-i", pth]
