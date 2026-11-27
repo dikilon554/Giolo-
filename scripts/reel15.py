@@ -225,14 +225,27 @@ def sc_timer(img, t, d):
     box = Image.new("RGBA", (800, 300), (0, 0, 0, 0)); ImageDraw.Draw(box).rounded_rectangle([0, 0, 799, 299], 60, fill=NAVY, outline=RED, width=8)
     put(img, box, 540, 700, eb(t / 0.4)); put(img, text_img(txt, 190, WHITE), 540, 700, eb(t / 0.4))
     put(img, text_img("МИНУТ", 130, RED), 540, 1040, eb((t - 0.3) / 0.4))
-_st = None
+import glob as _glob
+_TL = [Image.open(f).convert("RGB").resize((270, 169), Image.LANCZOS) for f in sorted(_glob.glob(f"{AS}/styles/t*.png"))]
+_cols = []
+for _c in range(4):                                  # 4 колонки плиток стилей, у каждой своя последовательность и направление
+    order = [(_c * 13 + k * 5) % len(_TL) for k in range(14)]
+    strip = Image.new("RGB", (270, 177 * len(order)), (232, 238, 248))
+    for k, ti in enumerate(order): strip.paste(rounded(_TL[ti], 16).convert("RGB") if False else _TL[ti], (0, 177 * k))
+    _cols.append(strip)
+_COLMASK = Image.new("L", (270, 169), 0); ImageDraw.Draw(_COLMASK).rounded_rectangle([0, 0, 269, 168], 16, fill=255)
 def sc_s60(img, t, d):
-    global _st
-    if _st is None:
-        fr = run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", "0.9", "-i", f"{CL}/VID_20261127_164637_466.mp4", "-frames:v", "1", f"{OUT}/_st.png"]); _st = Image.open(f"{OUT}/_st.png").convert("RGB").crop((0, 150, 720, 646))
-        _st = card(_st, (900, 620), 34)
-    put(img, text_img("60+", 400, BLUE), 540, 330, eb(t / 0.45)); put(img, text_img("СТИЛЕЙ", 120, NAVY), 540, 610, eb((t - 0.2) / 0.4))
-    put(img, _st, 540, 1090, eb((t - 0.4) / 0.5))
+    for c, strip in enumerate(_cols):
+        sh = strip.height; off = int((t * 38 * (1 if c % 2 == 0 else -1) + c * 211) % sh)
+        two = Image.new("RGB", (270, sh * 2)); two.paste(strip, (0, 0)); two.paste(strip, (0, sh))
+        view = two.crop((0, off, 270, off + H)); x0 = 0 + c * 270
+        al = eo((t - 0.05 * c) / 0.4)
+        ov = Image.new("RGBA", (270, H), (0, 0, 0, 0)); ov.paste(view.convert("RGBA"), (0, 0))
+        a = np.array(ov); a[..., 3] = int(255 * al); ov = Image.fromarray(a)
+        img.alpha_composite(ov, (x0, 0))
+    img.alpha_composite(Image.new("RGBA", (W, H), (245, 248, 255, 105)))                       # светлая вуаль: текст читается
+    put(img, text_img("60+", 460, BLUE, 16, (255, 255, 255, 255)), 540, 760, eb(t / 0.45))
+    put(img, text_img("СТИЛЕЙ", 150, NAVY, 12, (255, 255, 255, 255)), 540, 1050, eb((t - 0.2) / 0.4))
 def sc_gift(img, t, d):
     put(img, emoji_img("\U0001F381", 320), 540, 330, eb(t / 0.5) * (1 + 0.04 * np.sin(t * 6)))
     put(img, pill("ПОДАРКИ ПЕРВЫМ", 80, RED, px=50, py=26), 540, 690, eb((t - 0.2) / 0.4)); put(img, pill("ПОЛЬЗОВАТЕЛЯМ", 80, RED, px=50, py=26), 540, 830, eb((t - 0.35) / 0.4))
@@ -333,7 +346,7 @@ with _w.open(CLICKS, "wb") as _f:
 TRACK = os.environ.get("TRACK", f"{ROOT}/исходники/пак_музыки/100ТРЕКОВ/88) Tak Tak Funk - Tazty  9am3X.mp3")
 MIX_DB = float(os.environ.get("MIX_DB", "-13")); music = f"{OUT}/music_track.wav"
 run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", "0", "-i", TRACK, "-t", f"{dur + 0.5:.2f}", "-vn", "-ac", "2", "-ar", "44100", music])
-final = f"{OUT}/рилс15_v1.mp4"
+final = f"{OUT}/рилс15_v2.mp4"
 af = (f"[1:a]highpass=f=55,afade=t=in:st=0:d=0.06,afade=t=out:st={dur - 1.4:.2f}:d=1.4,volume={MIX_DB}dB[m];[3:a]volume=-4dB[c];[2:a]asplit=2[v][vs];"
       "[m][vs]sidechaincompress=threshold=0.02:ratio=8:attack=8:release=300[md];"
       "[v][md][c]amix=inputs=3:normalize=0:duration=first,loudnorm=I=-14:TP=-1.5:LRA=11,alimiter=limit=0.89:level=disabled[a]")
