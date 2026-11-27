@@ -18,16 +18,12 @@ alpha = np.clip(alpha * np.clip(seg * 1.5, 0, 1), 0, 1)
 # убрать мелкие дыры/точки
 alpha = cv2.morphologyEx(alpha, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
 alpha = np.clip((alpha - 0.3) / 0.7, 0, 1)  # срезать дымку над плечами
-# тёмный не-зелёный фон (стул/ткань) у краёв кадра в нижней части — убрать
-Hh, Ww = alpha.shape
-dark = ((f.max(-1) < 55) & (alpha > 0)).astype(np.uint8)
-dark[: int(Hh * 0.55)] = 0
-n, lab, st, _ = cv2.connectedComponentsWithStats(dark, 8)
-for i in range(1, n):
-    x, y, w, h, area = st[i]
-    cxr = (x + w / 2) / Ww
-    if area > 3000 and (x == 0 or x + w >= Ww or y + h >= Hh or cxr < 0.3 or cxr > 0.7):
-        alpha[cv2.dilate((lab == i).astype(np.uint8), np.ones((9, 9), np.uint8)) > 0] = 0
+# низ кадра (руки лежат на всю ширину) — оставить целиком, без вырезания
+LOW = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
+if LOW < 1.0:
+    Hh = alpha.shape[0]; ys = np.arange(Hh)[:, None]
+    w_low = np.clip((ys - Hh * LOW) / (Hh * 0.02), 0, 1)
+    alpha = np.maximum(alpha, np.broadcast_to(w_low, alpha.shape))
 # цвет кромки: всё, что не уверенно-внутри, перекрашиваем из соседей изнутри
 inside = (alpha > 0.97).astype(np.uint8)
 band = ((alpha > 0.01) & (inside == 0)).astype(np.uint8)

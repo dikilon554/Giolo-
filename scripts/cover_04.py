@@ -7,7 +7,7 @@ from cover import W, H, WHITE, YELLOW, FONT, plate, text_line
 
 D = os.path.join(os.path.dirname(__file__), '..', 'обложки_2026-11-27')
 person_p, out = sys.argv[1], sys.argv[2]
-Hp, dx, dy = (int(v) for v in sys.argv[3:6])
+Hp, dx, dy, y0 = (int(v) for v in sys.argv[3:7])
 
 c = Image.open(f'{D}/слои/фон_студия.png').convert('RGB').filter(ImageFilter.GaussianBlur(2.2))
 c = ImageEnhance.Brightness(c).enhance(0.92).convert('RGBA')
@@ -30,7 +30,6 @@ def fit(text, maxw, start):
     for s in range(start, 30, -2):
         if d.textlength(text, font=ImageFont.truetype(FONT, s)) <= maxw: return s
 
-y0 = 1150
 s1, s2, s3 = fit('ТЫ СТАНЕШЬ ПЕРВЫМ', 930, 110), fit('МИЛЛИОНЕРОМ', 940, 160), fit('В СВОЕЙ СЕМЬЕ', 930, 110)
 s1 = s3 = min(s1, s3)
 y1 = int(y0 + 18 + s1 * 1.12 + s2 * 1.1 + s3 * 1.25 + 22)
