@@ -110,21 +110,23 @@ print(f"якорей времени: {len(XX)}")
 # ----------------------------------------------------------------------- 4. раскладка блоков (по новому времени)
 bd = lambda a, b: (eT(a) + sT(b)) / 2                    # граница между фразами = середина паузы
 # аватар останавливается: на этих границах вставлен блок (аватар молчит, идёт вставка со звуком)
-HOLDL = [(0.0, 625)]                      # приманка 25 с до аватара
+HOLDL = [(0.0, 293)]                      # приманка 11,7 с (только русская часть озвучки) до аватара
 NEW_TOTAL += sum(n for _, n in HOLDL)
 def new_f(t): return new_f0(t) + sum(n for H, n in HOLDL if H < t - 1e-6)
 LEAD = 3
 blocks = [  # слова: индексы VID_20261127_181453_033.words.json
-    ("readyh", None, None, {"hold": 25.0, "file": "VID_20261127_181458_093.mp4", "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
-    ("avatar", 0.0, bd(32, 33), {"zoom": 1.0, "name": "a1"}),
+    ("readyh", None, None, {"hold": 11.72, "file": "VID_20261127_181458_093.mp4", "ss": 0.0, "speed": 1.0, "audio": True, "crop": "crop=1280:720:0:0", "cy": 1700}),
+    ("avatar", 0.0, bd(12, 13), {"zoom": 1.0, "name": "a1"}),
+    ("clip", bd(12, 13), bd(19, 20), {"file": "VID_20261127_181455_462.mp4", "ss": "end", "speed": 1.0, "cy": 1700}),     # «Вот похожий… просмотров»: на весь экран
+    ("avatar", bd(19, 20), bd(32, 33), {"zoom": 1.0, "name": "a1b"}),
     ("clip", bd(32, 33), bd(45, 46), {"file": "VID_20261127_181500_659.mp4", "ss": 0.0, "speed": "auto", "cy": 1700}),
     ("motion", bd(45, 46), bd(52, 53), {"scene": "tea", "cy": 1650}),
-    ("readyh", bd(52, 53), bd(60, 61), {"file": "VID_20261127_181458_093.mp4", "ss": 8.0, "speed": 1.0, "crop": "crop=1280:720:0:0", "cy": 1700}),
+    ("readyh", bd(52, 53), bd(60, 61), {"file": "VID_20261127_181458_093.mp4", "ss": 14.0, "speed": 1.0, "crop": "crop=1280:720:0:0", "cy": 1700}),
     ("motion", bd(60, 61), bd(66, 67), {"scene": "upload", "cy": 1650}),
     ("avatar", bd(66, 67), bd(77, 78), {"zoom": 1.0, "name": "gift"}),
     ("demo", bd(77, 78), TOTAL, {"cy": 1856}),
 ]
-WINS = [("VID_20261127_181455_462.mp4", 0.0, 1.0, (0, 330, 720, 330), (700, 320), bd(12, 13), bd(19, 20))]      # «Вот похожий. Посмотри, сколько у него просмотров»
+WINS = []
 B = []
 for i, (kind, a, b, p) in enumerate(blocks):
     f0 = 0 if i == 0 else B[-1]["f1"]
@@ -137,6 +139,7 @@ for bl in B:
     if bl["kind"] in ("clip", "readyh"):
         d = float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f"{CL}/{bl['file']}"]).stdout)
         need = (bl["f1"] - bl["f0"]) / FPS
+        if bl.get("ss") == "end": bl["ss"] = max(0.0, d - need - 0.02)
         d_eff = bl.get("end") or d
         avail = d_eff - bl.get("ss", 0.0); ratio = avail / need
         if bl.get("speed") == "auto": bl["speed"] = min(1.0, max(0.8, ratio))
@@ -157,6 +160,7 @@ for bl in B:
     if bl["kind"] in ("clip", "readyh"):
         d = float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f"{CL}/{bl['file']}"]).stdout)
         need = (bl["f1"] - bl["f0"]) / FPS
+        if bl.get("ss") == "end": bl["ss"] = max(0.0, d - need - 0.02)
         if bl.get("ss") == "end": bl["ss"] = max(0.0, d - need - 0.02)
         d_eff = bl.get("end") or d
         avail = d_eff - bl.get("ss", 0.0); ratio = avail / need
@@ -605,7 +609,7 @@ _parts.append(_a0[_pos:])
 base_a = f"{OUT}/base_audio_hold.wav"
 with _wv.open(base_a, "wb") as _w1:
     _w1.setnchannels(2); _w1.setsampwidth(2); _w1.setframerate(_sr0); _w1.writeframes(np.concatenate(_parts).astype("<i2").tobytes())
-final = f"{OUT}/рилс18_v1.mp4"
+final = f"{OUT}/рилс18_v2.mp4"
 # звук роликов: «Маяк» на весь экран (со своей дорожкой), ниже голоса аватара; запись YouTube Studio без звука
 CLIP_DB = float(os.environ.get("CLIP_DB", "-3"))
 segs = [(f"{CL}/{bl['file']}", bl["ss"], bl["f0"] / FPS, (bl["f1"] - bl["f0"]) / FPS, bl["speed"]) for bl in B if bl.get("audio")]
