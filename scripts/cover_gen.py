@@ -44,6 +44,49 @@ c.alpha_composite(sh.filter(ImageFilter.GaussianBlur(25))); c.alpha_composite(p,
 for cs in cfg.get('cards', []): card(cs)
 c = c.convert('RGB'); d = ImageDraw.Draw(c)
 
+def panel(sp):
+    # скрин аналитики: src приводится к 1080x1920, потом crop, масштаб до w
+    global c, d
+    im = Image.open(P(sp['src'])).convert('RGB').resize((W, H), Image.LANCZOS).crop(tuple(sp['crop']))
+    k = sp['w'] / im.width; im = im.resize((sp['w'], round(im.height * k)), Image.LANCZOS)
+    im = im.filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=2))
+    x, y = sp['x'], sp['y']; r = 26
+    m = Image.new('L', c.size, 0); ImageDraw.Draw(m).rounded_rectangle((x, y + 12, x + im.width, y + im.height + 12), r, fill=150)
+    c.paste((0, 0, 0), (0, 0), m.filter(ImageFilter.GaussianBlur(20)))
+    mm = Image.new('L', im.size, 0); ImageDraw.Draw(mm).rounded_rectangle((0, 0, im.width - 1, im.height - 1), r, fill=255)
+    c.paste(im, (x, y), mm); d = ImageDraw.Draw(c)
+    if 'hl' in sp:  # красный круг вокруг суммы дохода
+        x0, y0, x1, y1 = [v * k for v in sp['hl']]
+        box = (x + x0, y + y0, x + x1, y + y1)
+        for wdt, col in [(16, (120, 0, 0)), (11, (235, 25, 35))]:
+            d.ellipse(box, outline=col, width=wdt)
+    return k
+
+def arrow(pts, col=(255, 226, 26)):
+    # толстая изогнутая стрелка (квадратичная кривая) с тёмной обводкой
+    global c, d
+    (x0, y0), (cx, cy), (x1, y1) = pts
+    t = np.linspace(0, 1, 80)
+    xs = (1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t ** 2 * x1
+    ys = (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t ** 2 * y1
+    line = list(zip(xs, ys))
+    ang = np.arctan2(ys[-1] - ys[-6], xs[-1] - xs[-6])
+    L, Wd = 70, 44
+    tip = (x1 + np.cos(ang) * 18, y1 + np.sin(ang) * 18)
+    head = [tip, (x1 - np.cos(ang) * L + np.sin(ang) * Wd, y1 - np.sin(ang) * L - np.cos(ang) * Wd),
+            (x1 - np.cos(ang) * L - np.sin(ang) * Wd, y1 - np.sin(ang) * L + np.cos(ang) * Wd)]
+    body = line[:-8]
+    for w_, cl, grow in [(34, (40, 10, 0), 8), (22, col, 0)]:
+        d.line(body, fill=cl, width=w_, joint='curve')
+        if grow:
+            cxh, cyh = np.mean([h[0] for h in head]), np.mean([h[1] for h in head])
+            hh = [(cxh + (hx - cxh) * 1.18, cyh + (hy - cyh) * 1.18) for hx, hy in head]
+            d.polygon(hh, fill=cl)
+        else:
+            d.polygon(head, fill=cl)
+
+if 'panel' in cfg: panel(cfg['panel'])
+
 def fit(text, maxw, start):
     for s in range(start, 30, -2):
         if d.textlength(text, font=ImageFont.truetype(FONT, s)) <= maxw: return s
@@ -56,7 +99,9 @@ for parts, mx in cfg['lines']:
 y0 = cfg['plate_y']; y = y0 + 20
 hgt = sum(s * 1.12 for _, s in lines) + 30
 plate(c, (35, y0, 1045, int(y0 + hgt + 14)))
+d = ImageDraw.Draw(c)
 for parts, s in lines:
     text_line(c, W / 2, y, parts, s); y += s * 1.12
+if 'arrow' in cfg: arrow(cfg['arrow'])
 c.save(P(cfg['out']), quality=100, subsampling=0)
 print('ok', [s for _, s in lines], 'plate', y0, int(y0 + hgt + 14))
