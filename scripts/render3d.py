@@ -47,9 +47,9 @@ def light(name, loc, energy, color, size):
 
 
 def studio():
-    light('key', (-3, -5, 4), 500, (1, 0.97, 0.94), 0.8)        # мягкий белый сверху-слева
-    light('rimR', (4, 3, 1.5), 2200, (1, 0.45, 0.08), 1.5)    # оранжевый контур справа-сзади
-    light('rimL', (-4, 2.5, 0.5), 1200, (1, 0.5, 0.12), 1.2)   # оранжевый контур слева-сзади
+    light('key', (-3, -5, 4), 900, (1, 0.97, 0.94), 1.2)        # мягкий белый сверху-слева
+    light('rimR', (4, 3, 1.5), 1500, (1, 0.45, 0.08), 1.5)    # оранжевый контур справа-сзади
+    light('rimL', (-4, 2.5, 0.5), 800, (1, 0.5, 0.12), 1.2)   # оранжевый контур слева-сзади
     light('fill', (2, -5, -1), 60, (1, 0.9, 0.85), 4)        # чуть подсветить низ
 
 
@@ -73,6 +73,29 @@ def mat_orange(glow=0.35):
     p.inputs['Emission Color'].default_value = ORANGE
     p.inputs['Emission Strength'].default_value = glow
     return m
+
+
+def mat_color(rgb, rough=0.2, metal=0.0, coat=0.6, glow=0.0, name='c'):
+    """Материал в естественном цвете предмета (снег — голубой, YouTube — красный, дерево — коричневое…)."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    p = m.node_tree.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (*rgb, 1)
+    p.inputs['Roughness'].default_value = rough
+    p.inputs['Metallic'].default_value = metal
+    p.inputs['Coat Weight'].default_value = coat
+    p.inputs['Coat Roughness'].default_value = 0.05
+    if glow:
+        p.inputs['Emission Color'].default_value = (*rgb, 1)
+        p.inputs['Emission Strength'].default_value = glow
+    return m
+
+
+ICE = (0.05, 0.32, 1.0)
+ICE_LIGHT = (0.45, 0.78, 1.0)
+YT_RED = (0.75, 0.01, 0.01)
+WHITE = (0.92, 0.92, 0.92)
+WOOD = (0.07, 0.025, 0.007)
+SAND = (0.9, 0.42, 0.08)
 
 
 def mat_glass():
@@ -136,11 +159,11 @@ def build_snowflake():
     me = bpy.data.meshes.new('snow'); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new('snow', me); bpy.context.scene.collection.objects.link(o)
     bevel(o, 0.035, 4)
-    o.data.materials.append(mat_black())
+    o.data.materials.append(mat_color(ICE, rough=0.12, coat=1.0, glow=0.12, name='ice'))
     bpy.context.view_layer.objects.active = o; o.select_set(True)
     bpy.ops.object.shade_smooth()
     bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.16, depth=0.2, location=(0, 0, 0.02))
-    hub = bpy.context.active_object; bevel(hub, 0.03, 3); hub.data.materials.append(mat_orange())
+    hub = bpy.context.active_object; bevel(hub, 0.03, 3); hub.data.materials.append(mat_color(ICE_LIGHT, rough=0.1, coat=1.0, glow=0.15, name='ice2'))
     for x in (o, hub):  # поставить лицом к камере (плоскость XZ)
         x.rotation_euler = (math.radians(90), 0, 0)
     return [o, hub], dict(rot=(math.radians(-14), 0, math.radians(-24)))
@@ -168,10 +191,10 @@ def build_play():
     """Кнопка Play в стиле бренда: чёрная скруглённая плитка, оранжевый треугольник."""
     bpy.ops.mesh.primitive_cube_add(size=1); b = bpy.context.active_object
     b.scale = (1.5, 0.38, 1.05); bpy.ops.object.transform_apply(scale=True)
-    bevel(b, 0.17, 10); b.data.materials.append(mat_black()); bpy.ops.object.shade_smooth()
+    bevel(b, 0.17, 10); b.data.materials.append(mat_color(YT_RED, rough=0.18, coat=1.0, name='red')); bpy.ops.object.shade_smooth()
     bpy.ops.mesh.primitive_cylinder_add(vertices=3, radius=0.34, depth=0.14, location=(0.05, -0.2, 0),
                                         rotation=(math.radians(90), math.radians(90), 0))
-    tri = bpy.context.active_object; bevel(tri, 0.05, 6); tri.data.materials.append(mat_orange())
+    tri = bpy.context.active_object; bevel(tri, 0.05, 6); tri.data.materials.append(mat_color(WHITE, rough=0.25, coat=0.5, name='white'))
     bpy.ops.object.shade_smooth()
     return [b, tri], dict(rot=(math.radians(10), 0, math.radians(-24)))
 
@@ -181,11 +204,11 @@ def build_hourglass():
     objs = []
     for z in (1.0, -1.0):
         bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.62, depth=0.14, location=(0, 0, z))
-        c = bpy.context.active_object; bevel(c, 0.04, 4); c.data.materials.append(mat_black()); objs.append(c)
+        c = bpy.context.active_object; bevel(c, 0.04, 4); c.data.materials.append(mat_color(WOOD, rough=0.35, coat=0.8, name='wood')); objs.append(c)
     for k in range(3):
         a = k * 2 * math.pi / 3 + 0.4
         bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.04, depth=2.0, location=(0.5 * math.cos(a), 0.5 * math.sin(a), 0))
-        s = bpy.context.active_object; s.data.materials.append(mat_black()); objs.append(s)
+        s = bpy.context.active_object; s.data.materials.append(mat_color(WOOD, rough=0.35, coat=0.8, name='wood2')); objs.append(s)
     bm = bmesh.new()  # стекло — тело вращения
     prof = [(0.03, 0), (0.18, 0.12), (0.42, 0.45), (0.47, 0.75), (0.4, 0.93)]
     vs = [bm.verts.new((r, 0, -z)) for r, z in reversed(prof)] + [bm.verts.new((r, 0, z)) for r, z in prof[1:]]
@@ -197,9 +220,9 @@ def build_hourglass():
     g.data.materials.append(mat_glass()); objs.append(g)
     bpy.context.view_layer.objects.active = g; g.select_set(True); bpy.ops.object.shade_smooth()
     bpy.ops.mesh.primitive_cone_add(vertices=64, radius1=0.4, radius2=0.03, depth=0.42, location=(0, 0, -0.68))
-    sand = bpy.context.active_object; sand.data.materials.append(mat_orange()); objs.append(sand)
+    sand = bpy.context.active_object; sand.data.materials.append(mat_color(SAND, rough=0.8, coat=0, name='sand')); objs.append(sand)
     bpy.ops.mesh.primitive_cone_add(vertices=64, radius1=0.03, radius2=0.3, depth=0.3, location=(0, 0, 0.32))
-    top = bpy.context.active_object; top.data.materials.append(mat_orange()); objs.append(top)
+    top = bpy.context.active_object; top.data.materials.append(mat_color(SAND, rough=0.8, coat=0, name='sand2')); objs.append(top)
     return objs, dict(rot=(math.radians(6), 0, math.radians(15)), lens=70)
 
 
