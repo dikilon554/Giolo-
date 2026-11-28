@@ -3,3 +3,4 @@ out
 исходники/
 монтаж_*/
 scripts/tg_config.json
+__pycache__/
