@@ -11,8 +11,9 @@
       --emoji coffee:1120:420:230 --emoji snowflake:1150:140:110:15 \
       --emoji snowflake:120:610:120:-10 --emoji snowflake:1060:615:80:25
 
---plate: «белая часть |оранжевая часть». --emoji: имя:x:y:размер[:угол], имена — файлы в assets/cover/emoji/
-(эмодзи Apple 64 px; лучше качество — положить PNG крупнее с тем же именем).
+--plate: «белая часть |оранжевая часть». --emoji (или --obj): имя:x:y:высота[:угол]. Сначала ищется 3D-объект
+в assets/cover/objects/ (кубок, монета F, кнопка YouTube…), потом эмодзи Apple в assets/cover/emoji/.
+Строгость: 1 главный предмет, максимум ещё 1 мелкий (знания/обложки.md).
 """
 import argparse
 from pathlib import Path
@@ -53,8 +54,18 @@ def background():
     return Image.blend(bg, ImageChops.add(bg, noise, scale=8), 0.4)
 
 
+def find_item(name):
+    for folder in ('objects', 'emoji'):   # сначала 3D-объекты бренда, потом эмодзи
+        p = A / f'cover/{folder}/{name}.png'
+        if p.exists():
+            return p
+    raise SystemExit(f'Нет предмета {name} в assets/cover/objects/ или assets/cover/emoji/')
+
+
 def emoji(img, name, cx, cy, size, angle=0):
-    e = Image.open(A / f'cover/emoji/{name}.png').convert('RGBA').resize((size, size), Image.LANCZOS)
+    """Предмет (3D-объект или эмодзи): size — высота в пикселях, пропорции сохраняются."""
+    e = Image.open(find_item(name)).convert('RGBA')
+    e = e.resize((max(1, round(e.width * size / e.height)), size), Image.LANCZOS)
     if angle:
         e = e.rotate(angle, Image.BICUBIC, expand=True)
     e = e.filter(ImageFilter.UnsharpMask(2, 60, 2))
@@ -121,8 +132,16 @@ def make(line1, line2, plate_text, objects, out):
     img = background()
     for o in objects:
         emoji(img, *o)
-    side = any(o[1] > 1000 and o[3] >= 180 for o in objects)  # крупный предмет справа → текст левее
-    max_w, cx = (860, 560) if side else (1000, W // 2)
+    # крупный предмет справа → заголовок левее и не заходит на предмет
+    left = W
+    for o in objects:
+        if o[1] > 900 and o[3] >= 180:
+            im = Image.open(find_item(o[0]))
+            left = min(left, o[1] - im.width * o[3] / im.height / 2)
+    if left < W:
+        cx = int((40 + left) / 2); max_w = int(left - 40 - 50)
+    else:
+        max_w, cx = 1000, W // 2
     s = min(fit_size(line1, max_w), fit_size(line2, max_w))
     c1, m1 = text_layer(line1, s, (255, 255, 255), (205, 205, 205))
     c2, m2 = text_layer(line2, s, ORANGE_TOP, ORANGE_BOT)
@@ -149,7 +168,7 @@ if __name__ == '__main__':
     ap.add_argument('--line1', required=True, help='белая строка заголовка')
     ap.add_argument('--line2', required=True, help='оранжевая строка заголовка')
     ap.add_argument('--plate', default='', help='подпись на плашке: «белое |ОРАНЖЕВОЕ»')
-    ap.add_argument('--emoji', action='append', default=[], help='имя:x:y:размер[:угол]')
+    ap.add_argument('--emoji', '--obj', dest='emoji', action='append', default=[], help='имя:x:y:высота[:угол]')
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
     make(a.line1, a.line2, a.plate, [parse_emoji(e) for e in a.emoji], a.out)
