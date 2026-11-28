@@ -65,6 +65,8 @@ def find_item(name):
 def emoji(img, name, cx, cy, size, angle=0):
     """Предмет (3D-объект или эмодзи): size — высота в пикселях, пропорции сохраняются."""
     e = Image.open(find_item(name)).convert('RGBA')
+    bb = e.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox()  # срезать пустые поля рендера
+    e = e.crop(bb) if bb else e
     e = e.resize((max(1, round(e.width * size / e.height)), size), Image.LANCZOS)
     if angle:
         e = e.rotate(angle, Image.BICUBIC, expand=True)
@@ -137,6 +139,7 @@ def make(line1, line2, plate_text, objects, out):
     for o in objects:
         if o[1] > 900 and o[3] >= 180:
             im = Image.open(find_item(o[0]))
+            im = im.crop(im.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox() or (0, 0, im.width, im.height))
             left = min(left, o[1] - im.width * o[3] / im.height / 2)
     if left < W:
         cx = int((40 + left) / 2); max_w = int(left - 40 - 50)
