@@ -9,7 +9,7 @@ D = os.path.join(os.path.dirname(__file__), '..', 'обложки_2026-11-27')
 person_p, out = sys.argv[1], sys.argv[2]
 Hp, dx, dy, y0 = (int(v) for v in sys.argv[3:7])
 
-c = Image.open(f'{D}/слои/фон_студия.png').convert('RGB').filter(ImageFilter.GaussianBlur(2.2))
+c = Image.open(os.environ.get('COVER_BG', f'{D}/слои/фон_студия.png')).convert('RGB').filter(ImageFilter.GaussianBlur(2.2))
 c = ImageEnhance.Brightness(c).enhance(0.92).convert('RGBA')
 p = Image.open(person_p).convert('RGBA')
 p = p.resize((round(p.width * Hp / p.height), Hp), Image.LANCZOS)

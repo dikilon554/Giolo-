@@ -11,7 +11,7 @@ Hp = int(sys.argv[3]) if len(sys.argv) > 3 else 1636
 dx = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 dy = int(sys.argv[5]) if len(sys.argv) > 5 else 0
 
-c = Image.open(f'{D}/слои/фон_студия.png').convert('RGB').filter(ImageFilter.GaussianBlur(2.2))
+c = Image.open(os.environ.get('COVER_BG', f'{D}/слои/фон_студия.png')).convert('RGB').filter(ImageFilter.GaussianBlur(2.2))
 c = ImageEnhance.Brightness(c).enhance(0.92).convert('RGBA')
 
 # человек: тёплая коррекция под свет студии
