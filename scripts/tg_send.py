@@ -10,7 +10,7 @@ ID чата, куда слать черновики, хранится в scripts
   python3 scripts/tg_send.py --find-chat        # найти чат после того, как нажали Start у бота
   python3 scripts/tg_send.py post.html          # отправить пост (HTML-разметка Telegram)
   python3 scripts/tg_send.py post.html --poll poll.txt   # + опрос: 1-я строка вопрос, дальше варианты
-  python3 scripts/tg_send.py post.html --photo cover.jpg # сначала обложка, следом текст поста
+  python3 scripts/tg_send.py post.html --photo cover.jpg # обложка + текст (короткий ≤1024 — подписью к картинке, иначе следом)
 
 Разметка поста (parse_mode=HTML): <b>жирный</b>, <i>курсив</i>, <a href="URL">слово-ссылка</a>.
 Переносы строк сохраняются как есть.
@@ -45,14 +45,18 @@ def api(method, **params):
     return res["result"]
 
 
-def send_photo(path):
+def send_photo(path, caption=None):
     """Отправка картинки (multipart/form-data, без сторонних библиотек)."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         sys.exit("Нет TELEGRAM_BOT_TOKEN: добавь его в Environment variables окружения и открой новую сессию.")
     b = uuid.uuid4().hex
     p = Path(path)
-    body = (f'--{b}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id()}\r\n'
+    extra = ''
+    if caption:
+        extra = (f'--{b}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+                 f'--{b}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nHTML\r\n')
+    body = (f'--{b}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id()}\r\n{extra}'
             f'--{b}\r\nContent-Disposition: form-data; name="photo"; filename="cover{p.suffix}"\r\n'
             f'Content-Type: {mimetypes.guess_type(p.name)[0] or "image/jpeg"}\r\n\r\n').encode() \
         + p.read_bytes() + f'\r\n--{b}--\r\n'.encode()
@@ -99,10 +103,15 @@ def main(argv):
         print(f"Сохранил чат {who} в {CONFIG.name}")
         return
     text = Path(argv[0]).read_text(encoding="utf-8").strip()
-    if "--photo" in argv:
-        send_photo(argv[argv.index("--photo") + 1])
-    api("sendMessage", chat_id=chat_id(), text=text, parse_mode="HTML",
-        link_preview_options={"is_disabled": True})
+    import re
+    short = len(re.sub(r"<[^>]+>", "", text)) <= 1024  # лимит подписи к картинке в Telegram
+    if "--photo" in argv and short:
+        send_photo(argv[argv.index("--photo") + 1], caption=text)
+    else:
+        if "--photo" in argv:
+            send_photo(argv[argv.index("--photo") + 1])
+        api("sendMessage", chat_id=chat_id(), text=text, parse_mode="HTML",
+            link_preview_options={"is_disabled": True})
     if "--poll" in argv:
         lines = [l.strip() for l in Path(argv[argv.index("--poll") + 1]).read_text(encoding="utf-8").splitlines() if l.strip()]
         api("sendPoll", chat_id=chat_id(), question=lines[0],

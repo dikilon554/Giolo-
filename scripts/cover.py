@@ -87,7 +87,7 @@ def paste_title(img, col, mask, cx, y, glow):
     img.paste(col, (x, y), mask)
 
 
-def fit_size(text, max_w, start=260):
+def fit_size(text, max_w, start=200):  # 200 — потолок, чтобы короткие слова не были огромными
     s = start
     while s > 40:
         l, _, r, _ = ImageFont.truetype(F_TITLE, s).getbbox(text)
