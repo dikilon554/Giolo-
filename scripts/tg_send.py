@@ -8,6 +8,7 @@ ID чата, куда слать черновики, хранится в scripts
 Использование:
   python3 scripts/tg_send.py --check            # проверить токен (getMe)
   python3 scripts/tg_send.py --find-chat        # найти чат после того, как нажали Start у бота
+  python3 scripts/tg_send.py --find-chat group  # найти группу (бота добавили, в группе написали /start@<бот>)
   python3 scripts/tg_send.py post.html          # отправить пост (HTML-разметка Telegram)
   python3 scripts/tg_send.py post.html --poll poll.txt   # + опрос: 1-я строка вопрос, дальше варианты
   python3 scripts/tg_send.py post.html --photo cover.jpg # обложка + текст (короткий ≤1024 — подписью к картинке, иначе следом)
@@ -88,14 +89,15 @@ def main(argv):
         print(f"Токен рабочий, бот @{me['username']}")
         return
     if argv[0] == "--find-chat":
+        want = ("group", "supergroup") if "group" in argv[1:] else ("private",)
         chats = {}
         for u in api("getUpdates"):
             m = u.get("message") or u.get("my_chat_member") or {}
             c = m.get("chat")
-            if c and c.get("type") == "private":
-                chats[c["id"]] = c.get("first_name", "") + " @" + str(c.get("username", ""))
+            if c and c.get("type") in want:
+                chats[c["id"]] = c.get("title") or (c.get("first_name", "") + " @" + str(c.get("username", "")))
         if not chats:
-            sys.exit("Сообщений боту нет. Открой бота в Telegram, нажми Start (или напиши ему что угодно) и повтори.")
+            sys.exit("Чат не найден. Личный: открой бота и нажми Start. Группа: добавь бота в группу и напиши там /start@<бот>. Потом повтори.")
         if len(chats) > 1:
             print("Нашёл несколько чатов, сохраняю последний:", chats)
         cid, who = list(chats.items())[-1]
